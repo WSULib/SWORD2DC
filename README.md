@@ -8,3 +8,4 @@ Utility to batch upload SWORD deposited objects from Fedora Commons into Digital
 <ul>
 <li>PDF Miner - https://github.com/euske/pdfminer/</li>
 <li>Python lxml - http://lxml.de/</li>
+</ul>
