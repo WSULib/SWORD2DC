@@ -430,10 +430,6 @@ getToUpdate(LastBioMedDate)
 totalToUpdate = len(articleBlob.toUpdate)
 print "Total articles to process:",str(totalToUpdate)
 
-#HARDCODED TEST
-# articleBlob.toUpdate = ['wayne:613', 'wayne:647', 'wayne:673', 'wayne:710']
-#END TEST
-
 for PID in articleBlob.toUpdate:
 	try:	
 		createArticleMetadata(PID)
@@ -448,7 +444,7 @@ for PID in articleBlob.toUpdate:
 #clean, write and update
 cleanArticleBlob()
 writeToCSV()
-# updateLastBioMedDate()
+updateLastBioMedDate()
 
 
 
