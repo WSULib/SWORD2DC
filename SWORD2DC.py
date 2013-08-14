@@ -29,6 +29,7 @@ class articleBlob:
 	METSRoot = ''
 	articleRoot = ''
 	PID = ''
+	now = datetime.datetime.now().isoformat()
 
 
 '''
@@ -138,8 +139,8 @@ def loadPDF():
 
 	#extract text to text file
 	print "Extracting text from PDF:",articleBlob.BMC_DC_label
-	# call(['pdf2txt.py', '-o', './tmp/{BMC_DC_label}.txt'.format(BMC_DC_label=articleBlob.BMC_DC_label), './tmp/{BMC_DC_label}.pdf'.format(BMC_DC_label=articleBlob.BMC_DC_label)])
-	# call(['rm', './tmp/{BMC_DC_label}.pdf'.format(BMC_DC_label=articleBlob.BMC_DC_label)])
+	call(['pdf2txt.py', '-o', './tmp/{BMC_DC_label}.txt'.format(BMC_DC_label=articleBlob.BMC_DC_label), './tmp/{BMC_DC_label}.pdf'.format(BMC_DC_label=articleBlob.BMC_DC_label)])
+	call(['rm', './tmp/{BMC_DC_label}.pdf'.format(BMC_DC_label=articleBlob.BMC_DC_label)])
 
 	#get keywords	
 	fhand = open('./tmp/{BMC_DC_label}.txt'.format(BMC_DC_label=articleBlob.BMC_DC_label), 'r')
@@ -301,6 +302,8 @@ def createArticleMetadata(PID):
 
 def cleanArticleBlob():
 
+	print "\n\n***************************************************\nCleaning Article Blob...\n***************************************************\n"
+
 	#recursive dictionary function
 	def encodeUTF8(article,article_dict_element):
 		try:		
@@ -318,6 +321,8 @@ def cleanArticleBlob():
 		for key in article:
 			encodeUTF8(article,key)
 
+	print "finished."
+
 
 ###########################
 # write meta dictionary to CSV file
@@ -325,12 +330,21 @@ def cleanArticleBlob():
 def writeToCSV():
 
 	print "\n\n***************************************************\nWriting articles metadata to CSV file\n***************************************************\n"	
+
+	#check if articleMetaList empty...
+	if len(articleBlob.articleMetaList) < 1:
+		print "Nothing to write."
+		return	
 	
 	#open file to write to
 		#if not present because recently uploaded, creates new one
 		#if present, not recently uploaded, appends to bottom	
 	# fhand = codecs.open('./CSV_output/BMC_CSV_output.txt', 'w' , 'utf-8')
-	fhand = open('./CSV_output/BMC_CSV_output.txt', 'w')
+	now = datetime.datetime.now().isoformat()
+	filename = "./CSV_output/"+articleBlob.now+"_output.csv"
+	print "Output filename: ",filename
+	fhand = open(filename,'w')
+	# fhand = open('./CSV_output/BMC_CSV_output.txt', 'w')
 
 	#determine largest author load
 	maxCount = []
@@ -403,7 +417,10 @@ def writeToCSV():
 ###########################
 def updateLastBioMedDate():
 
-	now = datetime.datetime.now().isoformat()	
+	print "\n\n***************************************************\nUpdating 'LastBioMedExtract' date in Solr\n***************************************************\n"
+
+	now = datetime.datetime.now().isoformat()
+	print now	
 
 	#Updated LastFedoraIndex in Solr
 	updateURL = "http://localhost/solr4/fedobjs/update/?commit=true"
@@ -430,7 +447,7 @@ getToUpdate(LastBioMedDate)
 totalToUpdate = len(articleBlob.toUpdate)
 print "Total articles to process:",str(totalToUpdate)
 
-for PID in articleBlob.toUpdate:
+for PID in articleBlob.toUpdate:	
 	try:	
 		createArticleMetadata(PID)
 	except:
@@ -445,6 +462,9 @@ for PID in articleBlob.toUpdate:
 cleanArticleBlob()
 writeToCSV()
 updateLastBioMedDate()
+print "finis."
+
+
 
 
 
