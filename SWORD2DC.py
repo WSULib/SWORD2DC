@@ -14,6 +14,8 @@ from StringIO import StringIO
 from subprocess import call
 import re
 import codecs
+import smtplib
+from email.mime.text import MIMEText
 
 
 
@@ -30,20 +32,6 @@ class articleBlob:
 	articleRoot = ''
 	PID = ''
 	now = datetime.datetime.now().isoformat()
-
-
-'''
-1) Consider changed date based indexing to has-been indexed:
-		- we could add a relationship to the Fedora ontology that says "uploadedToDC"
-		- search for all objects that "isMemberOfCollection" "wayne:collectionBMC", that "uploadedToDC" is "False"
-
-	This approach would make sure only objects that were written to spreadsheet will be skipped next time around; the date method
-
-2) If writing new CSV each time...
-	- can write headers for Excel file to slurp up
-	- will be specific for each upload
-	- overwrites will NOT append correctly, sheet would HAVE to be uploaded otherwise all those PIDs would be forgotten
-'''
 
 
 ###########################
@@ -133,17 +121,17 @@ def loadPDF():
 	
 		
 	fhand = urllib.urlopen("http://{username}:{password}@localhost/fedora/objects/{PID}/datastreams/SWORD-{BMC_DC_label}-2/content".format(PID=PID,BMC_DC_label=articleBlob.BMC_DC_label,username=username,password=password))	
-	localFile = open('./tmp/{BMC_DC_label}.pdf'.format(BMC_DC_label=articleBlob.BMC_DC_label), 'w')
+	localFile = open(os.path.dirname(__file__)+'/tmp/{BMC_DC_label}.pdf'.format(BMC_DC_label=articleBlob.BMC_DC_label), 'w')
 	localFile.write(fhand.read())
 	localFile.close()
 
 	#extract text to text file
 	print "Extracting text from PDF:",articleBlob.BMC_DC_label
-	call(['pdf2txt.py', '-o', './tmp/{BMC_DC_label}.txt'.format(BMC_DC_label=articleBlob.BMC_DC_label), './tmp/{BMC_DC_label}.pdf'.format(BMC_DC_label=articleBlob.BMC_DC_label)])
-	call(['rm', './tmp/{BMC_DC_label}.pdf'.format(BMC_DC_label=articleBlob.BMC_DC_label)])
+	call(['pdf2txt.py', '-o', os.path.dirname(__file__)+'/tmp/{BMC_DC_label}.txt'.format(BMC_DC_label=articleBlob.BMC_DC_label), os.path.dirname(__file__)+'/tmp/{BMC_DC_label}.pdf'.format(BMC_DC_label=articleBlob.BMC_DC_label)])
+	call(['rm', os.path.dirname(__file__)+'/tmp/{BMC_DC_label}.pdf'.format(BMC_DC_label=articleBlob.BMC_DC_label)])
 
 	#get keywords	
-	fhand = open('./tmp/{BMC_DC_label}.txt'.format(BMC_DC_label=articleBlob.BMC_DC_label), 'r')
+	fhand = open(os.path.dirname(__file__)+'/tmp/{BMC_DC_label}.txt'.format(BMC_DC_label=articleBlob.BMC_DC_label), 'r')
 	article = fhand.read()	
 	try:
 		keywords = re.findall("Keywords:(.+?)\n\s*\n", article, re.S)[0].strip()
@@ -156,7 +144,7 @@ def loadPDF():
 		articleBlob.meta['keywords'] = ''
 
 	#get citation
-	fhand = open('./tmp/{BMC_DC_label}.txt'.format(BMC_DC_label=articleBlob.BMC_DC_label), 'r')
+	fhand = open(os.path.dirname(__file__)+'/tmp/{BMC_DC_label}.txt'.format(BMC_DC_label=articleBlob.BMC_DC_label), 'r')
 	article = fhand.read()
 	try:
 		citation = re.findall("Cite this article as:(.+?)Submit", article, re.S)[0].strip()
@@ -336,15 +324,10 @@ def writeToCSV():
 		print "Nothing to write."
 		return	
 	
-	#open file to write to
-		#if not present because recently uploaded, creates new one
-		#if present, not recently uploaded, appends to bottom	
-	# fhand = codecs.open('./CSV_output/BMC_CSV_output.txt', 'w' , 'utf-8')
-	now = datetime.datetime.now().isoformat()
-	filename = "./CSV_output/"+articleBlob.now+"_output.csv"
-	print "Output filename: ",filename
-	fhand = open(filename,'w')
-	# fhand = open('./CSV_output/BMC_CSV_output.txt', 'w')
+	#open file to write to	
+	print "Output filename: ",articleBlob.CSV
+	fhand = open(articleBlob.CSV,'w')
+	
 
 	#determine largest author load
 	maxCount = []
@@ -403,7 +386,7 @@ def writeToCSV():
 
 		#finally, new line and close	
 		except:
-			fhand_exceptions = open('./CSV_output/exceptions.txt','a')
+			fhand_exceptions = open(articleBlob.exceptions,'a+')
 			fhand_exceptions.write(str(article['PID'])+" - CSV writing\n")
 			fhand_exceptions.close()
 			continue
@@ -434,10 +417,36 @@ def updateLastBioMedDate():
 	print response
 
 
+###########################
+# Send email notification
+###########################
+def sendEmail():	
+	
+	msg = MIMEText("******************************************************************************\n\n"+"SWORD deposits from BioMed Central have been harvested from Fedora\n"+"Successful Outputs Filename: "+articleBlob.now+"_output.csv\n"+"Failed / Exceptions Filename: "+articleBlob.now+"_exceptions.csv\n"+"Thanks for playing, see you next month.\n\n"+"******************************************************************************")	
+
+	sender = "BioMed_SWORD_server@silo.lib.wayne.edu"
+	recipient = "ej2929@wayne.edu"
+	msg['Subject'] = 'BioMed SWORD harvest - '+articleBlob.now
+	msg['From'] = sender
+	msg['To'] = recipient
+
+	# Send the message via our own SMTP server, but don't include the
+	# envelope header.
+	s = smtplib.SMTP('mail.wayne.edu')
+	s.sendmail(sender, [recipient], msg.as_string())
+	s.quit()
+
+
+
+
 
 ###########################
 #Go Time.
 ###########################
+#Set output filenames
+articleBlob.exceptions = os.path.dirname(__file__)+'./CSV_output/'+articleBlob.now+'_exceptions.txt'
+articleBlob.CSV = os.path.dirname(__file__)+"./CSV_output/"+articleBlob.now+"_output.csv"
+
 #analyze
 openUpSecurity()
 LastBioMedDate = getLastBioMedDate()
@@ -452,7 +461,7 @@ for PID in articleBlob.toUpdate:
 		createArticleMetadata(PID)
 	except:
 		print "Could not process article from PID",PID
-		fhand_exceptions = open('./CSV_output/exceptions.txt','a')
+		fhand_exceptions = open(articleBlob.exceptions,'a')
 		fhand_exceptions.write(str(PID)+"\n")
 		fhand_exceptions.close()
 	print str(totalToUpdate)," / ",str(len(articleBlob.toUpdate)),"remaining to process."
@@ -461,12 +470,9 @@ for PID in articleBlob.toUpdate:
 #clean, write and update
 cleanArticleBlob()
 writeToCSV()
-updateLastBioMedDate()
+# updateLastBioMedDate()
+sendEmail()
 print "finis."
-
-
-
-
 
 
 
