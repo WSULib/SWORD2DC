@@ -121,17 +121,17 @@ def loadPDF():
 	
 		
 	fhand = urllib.urlopen("http://{username}:{password}@localhost/fedora/objects/{PID}/datastreams/SWORD-{BMC_DC_label}-2/content".format(PID=PID,BMC_DC_label=articleBlob.BMC_DC_label,username=username,password=password))	
-	localFile = open(os.path.dirname(__file__)+'/tmp/{BMC_DC_label}.pdf'.format(BMC_DC_label=articleBlob.BMC_DC_label), 'w')
+	localFile = open('./tmp/{BMC_DC_label}.pdf'.format(BMC_DC_label=articleBlob.BMC_DC_label), 'w')
 	localFile.write(fhand.read())
 	localFile.close()
 
 	#extract text to text file
 	print "Extracting text from PDF:",articleBlob.BMC_DC_label
-	call(['pdf2txt.py', '-o', os.path.dirname(__file__)+'/tmp/{BMC_DC_label}.txt'.format(BMC_DC_label=articleBlob.BMC_DC_label), os.path.dirname(__file__)+'/tmp/{BMC_DC_label}.pdf'.format(BMC_DC_label=articleBlob.BMC_DC_label)])
-	call(['rm', os.path.dirname(__file__)+'/tmp/{BMC_DC_label}.pdf'.format(BMC_DC_label=articleBlob.BMC_DC_label)])
+	call(['pdf2txt.py', '-o', './tmp/{BMC_DC_label}.txt'.format(BMC_DC_label=articleBlob.BMC_DC_label), './tmp/{BMC_DC_label}.pdf'.format(BMC_DC_label=articleBlob.BMC_DC_label)])
+	call(['rm', './tmp/{BMC_DC_label}.pdf'.format(BMC_DC_label=articleBlob.BMC_DC_label)])
 
 	#get keywords	
-	fhand = open(os.path.dirname(__file__)+'/tmp/{BMC_DC_label}.txt'.format(BMC_DC_label=articleBlob.BMC_DC_label), 'r')
+	fhand = open('./tmp/{BMC_DC_label}.txt'.format(BMC_DC_label=articleBlob.BMC_DC_label), 'r')
 	article = fhand.read()	
 	try:
 		keywords = re.findall("Keywords:(.+?)\n\s*\n", article, re.S)[0].strip()
@@ -144,7 +144,7 @@ def loadPDF():
 		articleBlob.meta['keywords'] = ''
 
 	#get citation
-	fhand = open(os.path.dirname(__file__)+'/tmp/{BMC_DC_label}.txt'.format(BMC_DC_label=articleBlob.BMC_DC_label), 'r')
+	fhand = open('./tmp/{BMC_DC_label}.txt'.format(BMC_DC_label=articleBlob.BMC_DC_label), 'r')
 	article = fhand.read()
 	try:
 		citation = re.findall("Cite this article as:(.+?)Submit", article, re.S)[0].strip()
@@ -422,10 +422,10 @@ def updateLastBioMedDate():
 ###########################
 def sendEmail():	
 	
-	msg = MIMEText("******************************************************************************\n\n"+"SWORD deposits from BioMed Central have been harvested from Fedora\n"+"Successful Outputs Filename: "+articleBlob.now+"_output.csv\n"+"Failed / Exceptions Filename: "+articleBlob.now+"_exceptions.csv\n"+"Thanks for playing, see you next month.\n\n"+"******************************************************************************")	
+	msg = MIMEText("******************************************************************************\n\n"+"SWORD deposits from BioMed Central have been harvested from Fedora\n"+"Project Output Directory: "+os.getcwd()+"/CSV_output\n"+"Successful Outputs Filename: "+articleBlob.now+"_output.csv\n"+"Failed / Exceptions Filename: "+articleBlob.now+"_exceptions.csv\n"+"Thanks for playing, see you next month.\n\n"+"******************************************************************************")	
 
 	sender = "BioMed_SWORD_server@silo.lib.wayne.edu"
-	recipient = "ej2929@wayne.edu"
+	recipient = "ej2929@wayne.edu" #TESTING FOR A COUPLE WEEKS, THEN SEND TO libwebmaster@wayne
 	msg['Subject'] = 'BioMed SWORD harvest - '+articleBlob.now
 	msg['From'] = sender
 	msg['To'] = recipient
@@ -443,9 +443,14 @@ def sendEmail():
 ###########################
 #Go Time.
 ###########################
+
 #Set output filenames
-articleBlob.exceptions = os.path.dirname(__file__)+'./CSV_output/'+articleBlob.now+'_exceptions.txt'
-articleBlob.CSV = os.path.dirname(__file__)+"./CSV_output/"+articleBlob.now+"_output.csv"
+if os.path.dirname(__file__) != '':
+	os.chdir(os.path.dirname(__file__))
+
+articleBlob.exceptions = './CSV_output/'+articleBlob.now+'_exceptions.txt'
+articleBlob.CSV = "./CSV_output/"+articleBlob.now+"_output.csv"
+
 
 #analyze
 openUpSecurity()
@@ -470,7 +475,7 @@ for PID in articleBlob.toUpdate:
 #clean, write and update
 cleanArticleBlob()
 writeToCSV()
-# updateLastBioMedDate()
+updateLastBioMedDate()
 sendEmail()
 print "finis."
 
