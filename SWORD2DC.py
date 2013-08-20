@@ -425,15 +425,15 @@ def sendEmail():
 	msg = MIMEText("******************************************************************************\n\n"+"SWORD deposits from BioMed Central have been harvested from Fedora\n"+"Project Output Directory: "+os.getcwd()+"/CSV_output\n"+"Successful Outputs Filename: "+articleBlob.now+"_output.csv\n"+"Failed / Exceptions Filename: "+articleBlob.now+"_exceptions.csv\n"+"Thanks for playing, see you next month.\n\n"+"******************************************************************************")	
 
 	sender = "BioMed_SWORD_server@silo.lib.wayne.edu"
-	recipient = "ej2929@wayne.edu" #TESTING FOR A COUPLE WEEKS, THEN SEND TO libwebmaster@wayne
+	# recipients = recipients_list #TESTING FOR A COUPLE WEEKS, THEN SEND TO libwebmaster@wayne
 	msg['Subject'] = 'BioMed SWORD harvest - '+articleBlob.now
 	msg['From'] = sender
-	msg['To'] = recipient
+	msg['To'] = ', '.join( recipients_list )
 
 	# Send the message via our own SMTP server, but don't include the
 	# envelope header.
 	s = smtplib.SMTP('mail.wayne.edu')
-	s.sendmail(sender, [recipient], msg.as_string())
+	s.sendmail(sender, recipients_list, msg.as_string())
 	s.quit()
 
 
