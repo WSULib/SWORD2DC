@@ -15,7 +15,11 @@ from subprocess import call
 import re
 import codecs
 import smtplib
-from email.mime.text import MIMEText
+from email.MIMEMultipart import MIMEMultipart
+from email.MIMEBase import MIMEBase
+from email.MIMEText import MIMEText
+from email.Utils import COMMASPACE, formatdate
+from email import Encoders
 
 
 
@@ -420,22 +424,38 @@ def updateLastBioMedDate():
 ###########################
 # Send email notification
 ###########################
-def sendEmail():	
-	
-	msg = MIMEText("******************************************************************************\n\n"+"SWORD deposits from BioMed Central have been harvested from Fedora\n"+"Project Output Directory: "+os.getcwd()+"/CSV_output\n"+"Successful Outputs Filename: "+articleBlob.now+"_output.csv\n"+"Failed / Exceptions Filename: "+articleBlob.now+"_exceptions.csv\n"+"Thanks for playing, see you next month.\n\n"+"******************************************************************************")	
+def sendEmail():
 
-	sender = "BioMed_SWORD_server@silo.lib.wayne.edu"
-	# recipients = recipients_list #TESTING FOR A COUPLE WEEKS, THEN SEND TO libwebmaster@wayne
+	# files = ["2013-11-11T16:00:58.862039_output.csv", "2013-11-11T16:01:52.960586_output.csv"]
+	files = [articleBlob.now+"_output.csv", articleBlob.now+"_exceptions.csv"]
+	text = "SWORD / BioMed deposit"
+
+	assert type(recipients_list)==list
+	assert type(files)==list
+
+	msg = MIMEMultipart()
+	send_from = "BioMed_SWORD_server@silo.lib.wayne.edu"
+	msg['From'] = send_from
+	msg['To'] = COMMASPACE.join(recipients_list)
+	msg['Date'] = formatdate(localtime=True)
+	# msg['Subject'] = subject
 	msg['Subject'] = 'BioMed SWORD harvest - '+articleBlob.now
-	msg['From'] = sender
-	msg['To'] = ', '.join( recipients_list )
 
-	# Send the message via our own SMTP server, but don't include the
-	# envelope header.
-	s = smtplib.SMTP('mail.wayne.edu')
-	s.sendmail(sender, recipients_list, msg.as_string())
-	s.quit()
+	msg.attach( MIMEText(text) )
 
+	for f in files:
+		try:
+			part = MIMEBase('application', "octet-stream")
+			part.set_payload( open("./CSV_output/"+f,"rb").read() )
+			Encoders.encode_base64(part)
+			part.add_header('Content-Disposition', 'attachment; filename="%s"' % os.path.basename(f))
+			msg.attach(part)
+		except:
+			print "Could not attach file"
+
+	smtp = smtplib.SMTP('mail.wayne.edu')
+	smtp.sendmail(send_from, recipients_list, msg.as_string())
+	smtp.close()
 
 
 
@@ -448,7 +468,7 @@ def sendEmail():
 if os.path.dirname(__file__) != '':
 	os.chdir(os.path.dirname(__file__))
 
-articleBlob.exceptions = './CSV_output/'+articleBlob.now+'_exceptions.txt'
+articleBlob.exceptions = './CSV_output/'+articleBlob.now+'_exceptions.csv'
 articleBlob.CSV = "./CSV_output/"+articleBlob.now+"_output.csv"
 
 
